@@ -204,15 +204,28 @@ exports.mqttAsync = function (hostname, topic, okMessage, options = {}) {
 
         let client = mqtt.connect(mqttUrl, {
             username,
-            password
+            password,
+            clientId: `Uptime-Kuma-${Math.random().toString(16).substring(2, 10)}`,
         });
 
         client.on("connect", () => {
             log.debug("mqtt", "MQTT connected");
 
             try {
-                log.debug("mqtt", "MQTT subscribe topic");
-                client.subscribe(topic);
+                client.subscribe(topic, { qos: 1 }, (err) => {
+                    if (err) {
+                        log.debug("mqtt", "MQTT subscribe error");
+                        client.end();
+                        clearTimeout(timeoutID);
+                        reject(new Error("Cannot subscribe topic"));
+                    }
+
+                    log.debug("mqtt", "MQTT subscribed to topic ");
+                    client.publish(topic, okMessage, { qos: 1 }, () => {
+                        log.debug("mqtt", "MQTT published message ");
+                    });
+                });
+
             } catch (e) {
                 client.end();
                 clearTimeout(timeoutID);
